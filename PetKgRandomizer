@@ -1,0 +1,129 @@
+--// Grow a Garden - Pet KG Randomizer UI
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+--// UI Setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PetKGRandomizer"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 250, 0, 120)
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, -60)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true -- IMPORTANT for mobile drag
+mainFrame.Draggable = true -- works on PC
+mainFrame.Parent = screenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0,12)
+UICorner.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "🤑KG Changer🤑"
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextSize = 18
+title.Parent = mainFrame
+
+local randomButton = Instance.new("TextButton")
+randomButton.Size = UDim2.new(0.8, 0, 0, 40)
+randomButton.Position = UDim2.new(0.1, 0, 0.45, 0)
+randomButton.Text = "Randomize KG"
+randomButton.Font = Enum.Font.GothamBold
+randomButton.TextSize = 16
+randomButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
+randomButton.TextColor3 = Color3.fromRGB(255,255,255)
+randomButton.BorderSizePixel = 0
+randomButton.Parent = mainFrame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0,8)
+btnCorner.Parent = randomButton
+
+--// Mobile-friendly drag support (Tween-based, smoother than .Draggable)
+local UserInputService = game:GetService("UserInputService")
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+	local delta = input.Position - dragStart
+	mainFrame.Position = UDim2.new(
+		startPos.X.Scale, startPos.X.Offset + delta.X,
+		startPos.Y.Scale, startPos.Y.Offset + delta.Y
+	)
+end
+
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement 
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		update(input)
+	end
+end)
+
+--// Scaling Function
+local function scalePetModel(pet, kg)
+	if not pet.PrimaryPart then
+		local primary = pet:FindFirstChildWhichIsA("BasePart")
+		if primary then pet.PrimaryPart = primary end
+	end
+	
+	local scale = math.max(kg / 100, 1) -- 100kg = normal size
+	if pet:IsA("Model") and pet:FindFirstChildWhichIsA("BasePart") then
+		pet:ScaleTo(scale)
+	end
+end
+
+--// Cooldown Vars
+local cooldown = 10
+local isOnCooldown = false
+
+--// Button Click
+randomButton.MouseButton1Click:Connect(function()
+	if isOnCooldown then return end
+	isOnCooldown = true
+	
+	local randomKG = math.random(100, 1000)
+	
+	local char = player.Character
+	if char then
+		for _, model in ipairs(char:GetChildren()) do
+			if model:IsA("Model") and model:FindFirstChildWhichIsA("BasePart") then
+				scalePetModel(model, randomKG)
+				model:SetAttribute("PetKG", randomKG)
+				print("Pet set to "..randomKG.." KG")
+			end
+		end
+	end
+
+	-- Cooldown countdown inside button text
+	for i = cooldown, 1, -1 do
+		randomButton.Text = "Randomize KG ("..i.."s)"
+		task.wait(1)
+	end
+	randomButton.Text = "Randomize KG"
+	isOnCooldown = false
+end)
