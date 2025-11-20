@@ -1,0 +1,161 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+---------------------------------------------------------------------
+-- CREATE GUI
+---------------------------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "AntiAFK_GUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 170)
+frame.Position = UDim2.new(0.5, -130, 0.5, -85)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.Active = true
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+-- Minimize button
+local minimize = Instance.new("TextButton")
+minimize.Size = UDim2.new(0, 25, 0, 25)
+minimize.Position = UDim2.new(1, -30, 0, 5)
+minimize.Text = "-"
+minimize.TextColor3 = Color3.fromRGB(255,255,255)
+minimize.Font = Enum.Font.GothamBold
+minimize.BackgroundColor3 = Color3.fromRGB(40,40,40)
+minimize.Parent = frame
+Instance.new("UICorner", minimize).CornerRadius = UDim.new(0, 6)
+
+-- Anti AFK Button
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1, -20, 0, 45)
+button.Position = UDim2.new(0, 10, 0, 45)
+button.Text = "Anti AFK"
+button.Font = Enum.Font.GothamSemibold
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+button.Parent = frame
+Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+-- Seconds TextBox
+local box = Instance.new("TextBox")
+box.Size = UDim2.new(1, -20, 0, 45)
+box.Position = UDim2.new(0, 10, 0, 100)
+box.Text = "10"
+box.PlaceholderText = "Seconds before jump"
+box.Font = Enum.Font.Gotham
+box.TextColor3 = Color3.fromRGB(255,255,255)
+box.BackgroundColor3 = Color3.fromRGB(35,35,35)
+box.ClearTextOnFocus = false
+box.Parent = frame
+Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+
+---------------------------------------------------------------------
+-- MINIMIZE SYSTEM
+---------------------------------------------------------------------
+local minimized = false
+local items = {button, box}
+
+minimize.MouseButton1Click:Connect(function()
+	minimized = not minimized
+
+	for _, obj in ipairs(items) do
+		obj.Visible = not minimized
+	end
+
+	frame.Size = minimized and UDim2.new(0, 260, 0, 40) or UDim2.new(0, 260, 0, 170)
+	minimize.Text = minimized and "+" or "-"
+
+	-- stop dragging if opening
+	if not minimized then dragging = false end
+end)
+
+---------------------------------------------------------------------
+-- DRAGGING (ONLY WHEN MINIMIZED)
+---------------------------------------------------------------------
+local dragging = false
+local dragStart
+local startPos
+
+local function beginDrag(input)
+	if not minimized then return end -- only draggable when minimized
+	dragging = true
+	dragStart = input.Position
+	startPos = frame.Position
+end
+
+local function endDrag()
+	dragging = false
+end
+
+local function updateDrag(input)
+	if dragging and minimized then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end
+
+-- Apply drag logic to all parts of GUI (frame + children)
+local function connectDrag(obj)
+	if obj:IsA("GuiObject") then
+		obj.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				beginDrag(input)
+			end
+		end)
+	end
+end
+
+connectDrag(frame)
+for _, child in ipairs(frame:GetDescendants()) do
+	connectDrag(child)
+end
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		endDrag()
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		updateDrag(input)
+	end
+end)
+
+---------------------------------------------------------------------
+-- ANTI-AFK SYSTEM
+---------------------------------------------------------------------
+local enabled = false
+local lastJump = 0
+
+local function getSeconds()
+	local n = tonumber(box.Text)
+	return (n and n > 0) and n or 10
+end
+
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	button.Text = enabled and "Anti AFK: ON" or "Anti AFK"
+end)
+
+RunService.RenderStepped:Connect(function()
+	if not enabled then return end
+
+	if tick() - lastJump >= getSeconds() then
+		humanoid.Jump = true
+		lastJump = tick()
+	end
+end)
